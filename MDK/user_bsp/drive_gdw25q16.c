@@ -1,18 +1,43 @@
+/**
+ *******************************************************************************
+ ** \brief  GD25Q16 SPI NOR Flash 驱动
+ **
+ ** \file    drive_gdw25q16.c
+ ** \version V1.0
+ **
+ ** \note    SPI4 配置：Mode0（CPOL=0/CPHA=0，GD25Qxx 标准）、MSB 在前、
+ **          分频 DIV16（PCLK2 50MHz/16 ≈ 3.1MHz，Flash 可承受）；
+ **          片选 PD8 由 GPIO 手动控制（外设 3 线模式无硬件 CS）
+ **          当前只实现了 JEDEC ID 读取用于"芯片在位"自检，
+ **          页读写/擦除待充电记录功能开发时补充
+ ******************************************************************************/
 #include "drive_gdw25q16.h"
 
+/* 片选拉高（总线释放，Flash 不选中） */
 static void CSHIG(void)
 {
 	GPIO_SetPins(GD25Q16CS_PORT,GD25Q16CS_PIN);
 }
+/* 片选拉低（选中 Flash，开始命令传输） */
 static void CSLOW(void)
 {
 	GPIO_ResetPins(GD25Q16CS_PORT,GD25Q16CS_PIN);
 }
 
+/**
+ *******************************************************************************
+ ** \brief  GD25Q16/SPI4 初始化
+ **
+ ** \param  [in] None
+ **
+ ** \retval None
+ ** \note   CS 引脚初始化为输出且默认高电平（PIN_STAT_SET，不选中），
+ **          再配置 SPI4 主模式全双工
+ ******************************************************************************/
 void drive_Gd25q16Init(void)
 {
-	
-    GPIO_SetFunc(GPIO_PORT_D,GPIO_PIN_09,GPIO_FUNC_45);//SPI4-MISO  
+
+    GPIO_SetFunc(GPIO_PORT_D,GPIO_PIN_09,GPIO_FUNC_45);//SPI4-MISO
     GPIO_SetFunc(GPIO_PORT_D,GPIO_PIN_10,GPIO_FUNC_44);//SPI4-MOSI
     GPIO_SetFunc(GPIO_PORT_D,GPIO_PIN_11,GPIO_FUNC_47);//SPI4-SCK
 	 /* GPIO initialize */
@@ -54,6 +79,16 @@ void drive_Gd25q16Init(void)
     /* Enable SPI1 */
     SPI_Cmd(CM_SPI4, ENABLE);
 }
+/**
+ *******************************************************************************
+ ** \brief  读取 GD25Q16 器件 ID（JEDEC ID，命令 0x9F）
+ **
+ ** \param  [in] None
+ **
+ ** \retval uint32_t  24bit ID：[23:16]=厂家(GD 为 0xC8)，[15:8]=容量类型，[7:0]=容量
+ ** \note   时序：CS拉低 → 发 0x9F → 连续发 3 个 0xFF 产生时钟收 ID → CS拉高；
+ **         RTC_task 周期调用本函数兼作 Flash 在位自检（ID 变化说明异常）
+ ******************************************************************************/
 uint32_t GD25Q_ReadJEDEC_ID(void)
 {
     uint8_t cmd = 0x9F;

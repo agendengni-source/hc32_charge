@@ -1,3 +1,17 @@
+/**
+ *******************************************************************************
+ ** \brief  交流充电桩主程序（HC32F460，裸机时间片轮询架构）
+ **
+ ** \file    main.c
+ ** \version V1.0
+ **
+ ** \note    初始化流程（外设写保护打开 -> 逐模块初始化 -> 写保护关闭）：
+ **          LED/蜂鸣 -> 时钟200MHz -> USART3读卡中断 -> USART1屏
+ **          -> 读卡模块 -> 急停 -> NTC -> BL0939 -> GD25Q16
+ **          -> 继电器 -> CP -> HDC1080 -> RCMU漏电 -> 拨码 -> RTC
+ **          随后注册调度回调、启动 1ms SysTick，进入主循环跑任务表
+ **          业务架构三层：user_bsp 驱动层 / user_system 服务层 / user_app 应用层
+ ******************************************************************************/
 #include "main.h"
 #include "drive_led.h"
 #include "drive_beep.h"
@@ -20,13 +34,10 @@
 #include "drive_dswb04.h"
 #include "ser_cp.h"
 #include "drive_rtc.h"
-float r=0;
-uint32_t ID=0;
+#include "app_charge.h"
 int32_t main(void)
   {
-	uint8_t emergency_now;
-	uint8_t emergency_last=0;
-	uint8_t card_result;
+
 	LL_PERIPH_WE(LL_PERIPH_ALL);
 	drive_LedInit();
 	drive_BeepInit();
@@ -46,63 +57,27 @@ int32_t main(void)
 		drive_Dswb04Init();
 		drive_RtcInit();
 	LL_PERIPH_WP(LL_PERIPH_ALL);
+	apptaskinit();
 	 s_SystickInit();
-	ID=GD25Q_ReadJEDEC_ID();
-//	LRealyON();
-//	NRealyON();
-	screenshow.top_state=Normal;
-	screenshow.showfault = SHOW_NO_Fault;
+
+//	screenshow.top_state=Normal;
+//	screenshow.showfault = SHOW_NO_Fault;
 // Cp_SetCompareValue(2500);
-	car_state=Car_NCON;
-	int_state=NCT_internet;
-	 HDC1080_Data_t hdcdate;
-	 
+//	car_state=Car_NCON;
+//	int_state=NCT_internet;
+	HDC1080_Data_t hdcdate;
+	/* TODO：上电漏电模块自检被注释（自检依赖的 Self_check 当前
+	   在 APP_WAIT_READY 里也处于注释状态）——上线前必须恢复其一 */
+//	uint8_t a=Self_check();
+//	while(a)
+//	{
+//	}
 	for (;;)
-	{   
-		getrtctime();
+	{
+		TaskHandle();
+//		getrtctime();
 //		 DRV_HDC1080_Poll(&hdcdate);
-		DDL_DelayMS(100);
-		Ser_CPcheck();
-		card_result=compdate();
-		emergency_now=(GPIO_ReadInputPins(EMSTOP_PORT, EMSTOP_PIN) == PIN_SET);
-		if (emergency_now)
-		{
-			LRealyOFF();
-			NRealyOFF();
-			screenshow.top_state=	Malfunction;
-			screenshow.showfault=SHOW_FAULT_EMERGENCY;
-			car_state=Car_Issue;
-			Charging_issue=FAULT_EMERGENCY_STOP;
-		}
-		else if(emergency_last)
-			{
-				   /* ��ʾ���������ڼ�ͣ���ͷ�ʱ�ش�������������ˢ���¼��� */
-				  if (screenshow.top_state == Malfunction &&
-                screenshow.showfault == SHOW_FAULT_EMERGENCY)
-					{
-			screenshow.top_state=Normal;
-			screenshow.showfault = SHOW_NO_Fault;
-			car_state=Car_NCON;
-			int_state=NCT_internet;
-					}
-		}
-		else if(card_result==2&&screenshow.top_state==Normal)
-			{
-		car_state=Car_CON;
-		carcon_state=charging;
-		screenshow.top_state=Charging;
-			}
-			 emergency_last = emergency_now;
-			
-		if(led_slowtime[0]>led_slowtime[1])
-		{
-			r=NTC_NCT_RValue();
-			read_bl0903alldate();
-			printf("temp.txt=\"%.2f\"\xff\xff\xff",r);
-			led_slowtime[0]=0;
-		}
-		beeptask();
-		led_Language();
-		ScreenState_Show(screenshow);
-	}	
+//		DDL_DelayMS(100);
+
+	}
 }

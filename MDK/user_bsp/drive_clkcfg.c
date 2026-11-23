@@ -1,7 +1,31 @@
+/**
+ *******************************************************************************
+ ** \brief  系统时钟配置：XTAL 8MHz → PLL → 200MHz
+ **
+ ** \file    drive_clkcfg.c
+ ** \version V1.0
+ **
+ ** \note    PLL 倍频路径：8MHz / M(1) × N(50) / P(2) = 200MHz
+ **          总线分频（官方 200MHz 例程标准配置）：
+ **          HCLK=200M，EXCLK=100M，PCLK0=200M，PCLK1=100M，
+ **          PCLK2=50M，PCLK3=50M，PCLK4=100M
+ **          —— USART1/3、SPI3/4 挂 PCLK 分支，波特率分频按此推算
+ ******************************************************************************/
 #include "drive_clkcfg.h"
 
- 
 
+
+/**
+ *******************************************************************************
+ ** \brief  时钟系统初始化（main 最先调用）
+ **
+ ** \param  [in] None
+ **
+ ** \retval None
+ ** \note   顺序：总线分频 → SRAM/Flash 等待周期（200MHz 下必须配置，
+ **         否则取指出错）→ 开 XTAL 稳定 2ms → 配置并启动 PLL
+ **         → GPIO 读等待 → 电源高速模式 → 切换系统时钟源到 PLL
+ ******************************************************************************/
 void drive_ClkcfgInit(void)
 {
 	     CLK_SetClockDiv(CLK_BUS_CLK_ALL, (CLK_HCLK_DIV1 | CLK_EXCLK_DIV2 | CLK_PCLK0_DIV1 | CLK_PCLK1_DIV2 | \

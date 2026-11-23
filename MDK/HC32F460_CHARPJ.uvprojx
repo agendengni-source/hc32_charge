@@ -665,6 +665,16 @@
               <FileType>1</FileType>
               <FilePath>.\user_system\ser_cp.c</FilePath>
             </File>
+            <File>
+              <FileName>ser_estop.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user_system\ser_estop.c</FilePath>
+            </File>
+            <File>
+              <FileName>ser_blo939.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user_system\ser_blo939.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1286,6 +1296,16 @@
               <FileName>ser_cp.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user_system\ser_cp.c</FilePath>
+            </File>
+            <File>
+              <FileName>ser_estop.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user_system\ser_estop.c</FilePath>
+            </File>
+            <File>
+              <FileName>ser_blo939.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user_system\ser_blo939.c</FilePath>
             </File>
           </Files>
         </Group>

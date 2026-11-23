@@ -1,3 +1,19 @@
+/**
+ *******************************************************************************
+ ** \brief  CP ĞÅºÅ×´Ì¬ÅĞ¶Á·şÎñ£¨µçÑ¹·Öµµ + ¸º°ëÖÜ¶ş¼«¹Ü¼ì²é£©
+ **
+ ** \file    ser_cp.c
+ ** \version V1.0
+ **
+ ** \note    ÕıµçÑ¹·Öµµ£¨GB/T 18487.1 ¸½Â¼A£¬ÔÊĞí¹¤³ÌÔ£Á¿£©£º
+ **          11.4V~12.0V  Î´Á¬½Ó£¨ÎŞ³µÁ¾£¬CP ¿ÕÔØ +12V£©
+ **          8.0V~10.0V   ÒÑÁ¬½ÓÎ´¾ÍĞ÷£¨³µ¶Ë S2 ¶Ï¿ª£¬+9V µµ£©
+ **          5.6V~7.0V    ³µÁ¾¾ÍĞ÷£¨S2 ±ÕºÏ£¬+6V µµ£©
+ **          ¸º°ëÖÜ¼ì²é£º-12V~-10V ËµÃ÷³µ¶Ë·´À¡¶ş¼«¹ÜÕı³££¨cp_negative_ok=1£©£¬
+ **          ×÷Îª½øÈë³äµçµÄÇ°ÖÃÌõ¼şÖ®Ò»£¨·À¶ş¼«¹ÜÈ±Ê§¹ÊÕÏ£¬¹ÊÕÏÂë7C£©
+ **          ÅĞ¶Á½Ú×à£ºSer_CPcheck ÄÚ²¿ 10ms ×îĞ¡¼ä¸ô½ÚÁ÷£»
+ **          Ö»ÓĞ·ÖÀà±ä»¯²Å·µ»Ø 1£¬ÒµÎñ²ã¾İ´Ë×ö×´Ì¬ÇĞ»»
+ ******************************************************************************/
 #include "ser_cp.h"
 #include "drive_cp.h"
 #include "drive_relay.h"
@@ -8,23 +24,35 @@
 #include "app_charge.h"
 
 
+/* µ±Ç°ºÍÉÏÒ»´ÎÒÑ±¨¸æµÄ CP ÕıµçÑ¹·ÖÀà£¬ÓÃÓÚÊ¶±ğ×´Ì¬±ä»¯¡£ */
 CP_STATE cp_state=CP_UNKNOWN;
 CP_STATE lastcp_state=CP_UNKNOWN;
 static uint32_t s_tick=0;
-volatile uint8_t cp_negative_ok=0; 
+/* ¸º°ëÖÜÇø¼ä¼ì²é½á¹û£»µ±Ç°Ö»ÔÚÕıµçÑ¹·ÖÀà±ä»¯Ê±Ë¢ĞÂ¡£ */
+volatile uint8_t cp_negative_ok=0;
+/**
+ *******************************************************************************
+ ** \brief  ½« CP ÕıµçÑ¹²ÉÑùÖµ(mV)·ÖÀàÎªÁ¬½Ó×´Ì¬
+ **
+ ** \param  [in] None
+ **
+ ** \retval CP_STATE  µ±Ç°·ÖÀà£¨UNKNOWN/¶Ï¿ª/Á¬½Ó/¾ÍĞ÷£©
+ ** \note   Çø¼ä´ø¼äÏ¶Éè¼Æ£ºÂäÔÚ 7.0~8.0V¡¢10.0~11.4V ¹ı¶É´øÊ±ÅĞ UNKNOWN£¬
+ **          ±ÜÃâµçÑ¹ÔÚµµÎ»±ß½ç¶¶¶¯Ôì³É×´Ì¬À´»ØÇĞ»»
+ ******************************************************************************/
 static CP_STATE CP_GetState(void)
 {
 	uint32_t voltage_mv = Cp_voltage.PB0VALUE;
-	
+
 	if(11400<=voltage_mv&&voltage_mv<=12000)
 	{
 		return CP_DISCONNECTED;
 	}
-	else if(8500<=voltage_mv&&voltage_mv<=9400)
+	else if(8000<=voltage_mv&&voltage_mv<=10000)
 	{
 		return CP_CONNECTED;
 	}
-	else if(5600<=voltage_mv&&voltage_mv<=6400)
+	else if(5600<=voltage_mv&&voltage_mv<=7000)
 	{
 		return CP_READY;
 	}
@@ -32,12 +60,22 @@ static CP_STATE CP_GetState(void)
 	{
 		return CP_UNKNOWN;
 	}
-	
+
 }
+/**
+ *******************************************************************************
+ ** \brief  ¸º°ëÖÜµçÑ¹¼ì²é£¨¶ş¼«¹Ü´æÔÚĞÔ£©
+ **
+ ** \param  [in] None
+ **
+ ** \retval None
+ ** \note   PB1 »»ËãÖµÔÚ -12V~-10V Çø¼ä ¡ú ³µ¶Ë¶ş¼«¹ÜÕı³££¬cp_negative_ok=1£»
+ **          ·ñÔòÇå 0£¨¶ş¼«¹ÜÈ±Ê§Ê±½ûÖ¹½øÈë³äµç£©
+ ******************************************************************************/
 static void check(void)
 {
 	 int32_t voltage_mv = Cp_voltage.PB1VALUE;
-	if(-12000<=voltage_mv&&voltage_mv<=-11400)
+	if(-12000<=voltage_mv&&voltage_mv<=-10000)
 	{
 		cp_negative_ok=1;
 	}
@@ -46,33 +84,34 @@ static void check(void)
 		cp_negative_ok=0;
 	}
 }
-void Ser_CPcheck(void)
+/**
+ *******************************************************************************
+ ** \brief  CP ×´Ì¬¼ì²éÈë¿Ú£¨ÓÉ³äµç×´Ì¬»úÃ¿ 100ms µ÷ÓÃÒ»´Î£©
+ **
+ ** \param  [in] None
+ **
+ ** \retval uint8_t  1:ÕıµçÑ¹·ÖÀà·¢Éú±ä»¯£¨ÒµÎñ²ãÓ¦´¦ÀíÇĞ»»£©  0:ÎŞ±ä»¯
+ ** \note   ÄÚ²¿ 10ms ½ÚÁ÷£º¾àÉÏ´Î¼ì²é²»×ã 10ms Ö±½Ó·µ»Ø 0£»
+ **          ·ÖÀà±ä»¯Ê±Í¬²½Ë¢ĞÂ¸º°ëÖÜ¼ì²é½á¹û²¢¸üĞÂÀúÊ··ÖÀà
+ ******************************************************************************/
+uint8_t Ser_CPcheck(void)
 {
 	uint32_t now=get_systicktime();
+	/* ÕâÊÇ×îĞ¡¼ì²é¼ä¸ô£¬Êµ¼ÊÆµÂÊÈ¡¾öÓÚµ÷ÓÃ±¾º¯ÊıµÄÈÎÎñÖÜÆÚ¡£ */
 	if(now-s_tick<10)
 	{
-		return;
+		return 0;
 	}
 	s_tick=now;
-
-	/* æ¯10msæ›´æ–°ä¸€æ¬¡æ£€æµ‹ç»“æœï¼Œå½“å‰ä¸æ‰§è¡Œå……ç”µæ§åˆ¶ */
-	lastcp_state=cp_state;     /* ä¿å­˜ä¸Šä¸€æ¬¡æ£€æµ‹çš„çŠ¶æ€ */
-	cp_state=CP_GetState();   /* PB0ï¼šåˆ¤æ–­å½“å‰è½¦è¾†çŠ¶æ€ */
-	check();	/* PB1ï¼šæ›´æ–°è´ŸåŠå‘¨æ£€æŸ¥ç»“æœ */
-	switch(cp_state)
+	/* Ã¿10ms¸üĞÂÒ»´Î¼ì²â½á¹û£¬µ±Ç°²»Ö´ĞĞ³äµç¿ØÖÆ */
+		/* ±£´æÉÏÒ»´Î¼ì²âµÄ×´Ì¬ */
+	cp_state=CP_GetState();   /* PB0£ºÅĞ¶Ïµ±Ç°³µÁ¾×´Ì¬ */
+	if(lastcp_state!=cp_state)//ÉÏÒ»´Î×´Ì¬ºÍµ±Ç°×´Ì¬²»Ò»Ñù£¬Ôò±íÃ÷×´Ì¬±äÁË
 	{
-		case CP_UNKNOWN:
-			char_state=APP_IDLE;
-			break;
-		case CP_DISCONNECTED:
-			char_state=APP_WAIL_AUTH;
-			break;
-		case  CP_CONNECTED:
-			break;
-			case CP_READY:
-				
-			break;
-		default:
-			break;
+	check();
+lastcp_state=cp_state;		/* PB1£º¸üĞÂ¸º°ëÖÜ¼ì²é½á¹û */
+	return 1;
 	}
+
+	return 0;
 }
