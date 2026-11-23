@@ -8,3 +8,9 @@
 *.axf
 *.lnp
 *.build_log.htm
+/.zcode_tmp/
+# Keil 编译输出（Debug 和 Release）
+/MDK/output/
+
+# Keil 本机界面设置
+/MDK/*.uvguix.*
